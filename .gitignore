@@ -1,0 +1,69 @@
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+
+
+# R files #
+###########
+.Rhistory
+.Rproj.user
+.Rprofile
+.Rapp.history
+*.Rproj
+
+
+# Jupyter files #
+#################
+*/.ipynb_checkpoints/
+
+
+# Environments # 
+################
+renv/
+.venv/
+
+
+# Packages #
+############
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+
+# Data #
+########
+*.xlsx
+*.csv
+*.RDS
+*.rds
+*.H5Seurat
+*.h5ad
+*.xls
+*.geojson
+*.json
+*.qs2
+*.txt
+
+
+# Plots #
+#########
+*.pdf
+*.html
+*.png
+*.jpg
+*.jpeg
+*.png
+*.pptx
+*.svg
+
+
+# Folders #
+###########
+*outs/
+
