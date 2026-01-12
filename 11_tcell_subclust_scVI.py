@@ -2,7 +2,6 @@
 
 # rm(list = ls())
 # .rs.restartR(clean = T)
-# reticulate::use_condaenv("ting-crc-to-liver-mets", conda = "/opt/homebrew/Caskroom/miniforge/base/bin/conda")
 
 ## Setup -----------------------------------------------------------------------
 # Actual Python code begins here:
@@ -14,13 +13,53 @@ import pandas as pd
 import torch
 import matplotlib.pyplot as plt
 
-adata = sc.read_h5ad("sgroi-tnbc_filtered.h5ad")
-sc.pl.umap(adata, color = "celltype_level1")
-plt.subplots_adjust(right=0.75)
+adata = sc.read_h5ad("sgroi-tnbc_filtered_immune_subset.h5ad")
+sc.pl.umap(adata, color = "celltype_level2")
+plt.subplots_adjust(right=0.65)
 plt.show()
 
-## Subsetting to immune cells --------------------------------------------------
-adata = adata[adata.obs.celltype_level1.isin(["Lymphoid"]),].copy()
+## Subsetting to T and NK cells ------------------------------------------------
+adata = adata[adata.obs.celltype_level2.isin(["T and NK"]),].copy()
+
+## Subsetting to genes that matter ---------------------------------------------
+# Basically, we need to ignore genes that are likely to be in other cell types 
+# and which will only be expressed in this setting as contamination.
+# Claude Sonnet 4.5 helped me identify these genes, but Blake can likely confirm.
+genes_oi = ~adata.var_names.isin([
+  
+  # Structural/Stromal
+  "COL1A1", "COL3A1", "COL6A1", "COL6A2", "COL6A3", "MEG3", "CXCL14"
+  "LUM", "DCN", "SPARC", "SPARCL1", "FN1", "VCAN", "FAP",
+  "SERPINE1", "TGFBI", "SPON2", "RGS5", "SEMA3A", "ACTA2", "CAV1",
+  
+  # Endothelial
+  "PLVAP", "FLT1", "IGFBP7", "JAM2",
+  
+  # Epithelial/Tumor
+  "EPCAM", "KRT77", "KRT80", "ESR1", "PGR", "FOXA1",
+  "MUC5AC", "TFF3", "REG4", "CDX1", "CDX2",
+  "CEACAM6", "CEACAM8", "SOX9", "SOX17",
+  "ERBB2", "ERBB3", "ERBB4", "EGFR", "MET", "AXL",
+  
+  # Immunoglobulins/B cell
+  "IGHE", "IGHG1", "IGHG2", "IGHG3", "IGHG4", "IGHGP", "IGHM",
+  "IGKC", "IGLC3", "JCHAIN",
+  "MS4A1", "CD19", "PAX5", "SDC1", "MZB1", "CD79A", "CD79B",
+  "TCL1A", "BANK1", "FCMR", "FCER2", "CD37", "FCRL3",
+  
+  # Other
+  "XBP1", "CFC1", "PDGFRA", 
+  "MMP1", "MMP2", "MMP9", "MMP12", "MMP14"
+  
+])
+adata = adata[:, genes_oi].copy()
+
+## Subsetting to high quality cells --------------------------------------------
+import numpy as np
+adata.obs["counts_post_subset"] = np.array(adata.layers["counts"].sum(axis=1)).flatten()
+cells_keep = adata.obs["counts_post_subset"] >= 20
+np.mean(cells_keep) # ~99%
+adata = adata[cells_keep,].copy()
 
 ## Modeling --------------------------------------------------------------------
 scvi.model.SCVI.setup_anndata(
@@ -46,7 +85,7 @@ model4.train(
     early_stopping_monitor="elbo_validation",
     accelerator = "mps" # This is the apple silicon GPU. Use "gpu" for CUDA.
 )
-# RUNTIME: 4:50
+# RUNTIME: 3:38
 
 !mkdir 11_tcell_subclust_scVI_outs
 model4.save("11_tcell_subclust_scVI_outs/scVI_model4", overwrite=True)

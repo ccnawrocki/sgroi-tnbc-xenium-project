@@ -63,6 +63,7 @@ plot_embedding(source = adata$obs$sub_leiden_res_0.45, embedding = adata$obsm$X_
 # dev.off()
 
 # Canonical markers
+library(ggplot2)
 # pdf("10_immune_subclust_annot_outs/umap_by_markers_immune.pdf", width = 12, height = 12)
 plot_embedding(
   source = Matrix::t(adata$layers$lognorm) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names),
@@ -172,4 +173,132 @@ plot_embedding(adata$obs$celltype_level2, adata$obsm$X_umap, rasterize = T, labe
 
 # Saving 
 anndataR::write_h5ad(object = adata, path = "sgroi-tnbc_filtered_immune_subset.h5ad", mode = "w")
+
+# Trying a different approach
+# First, we will set up a uv venv here.
+# $ uv venv
+# $ source .venv/bin/activate
+# $ uv pip install scvi-tools
+
+# Telling renv to use the new uv venv:
+# renv::use_python(python = ".venv/bin/python")
+
+rm(list = ls())
+.rs.restartR(clean = T)
+
+library(Matrix)
+library(BPCells)
+library(ggplot2)
+
+# Getting scVI normalized expression  
+SCVI <- reticulate::import("scvi")
+ad <- reticulate::import("anndata")
+
+adata <- ad$read_h5ad("sgroi-tnbc_filtered_immune_subset.h5ad")
+
+model <- SCVI$model$SCVI$load("09_immune_subclust_scVI_outs/scVI_model3")
+denoised <- model$get_normalized_expression(adata = adata, library_size = 1000)
+
+# Making profiles for each cluster
+# renv::install("NanoString-BioStats/InSituType")
+prof <- InSituType::Estep(counts = denoised,
+                          clust = paste0("c", adata$obs$sub_leiden_res_0.45), 
+                          neg = array(data = 0, dim = adata$shape[[1]]) # We do not have negative probe info
+)$profiles
+
+# renv::install("pheatmap", prompt = F)
+# z-score scaling
+mat <- apply(X = prof, MARGIN = 1, FUN = scale) |> t() |> magrittr::set_colnames(colnames(prof))
+# pdf(file = "10_immune_subclust_annot_outs/heatmap_z-score_scaled_profiles.pdf", width = 6, height = 8)
+pheatmap::pheatmap(mat, color = viridis::plasma(n = 101),
+                   fontsize_col = 10, show_rownames = F,
+                   treeheight_row = 8, treeheight_col = 8, 
+                   main = "z-score scaled profiles")
+# dev.off()
+
+# 0-1 scaling
+mat <- sweep(x = prof, MARGIN = 1, STATS = apply(X = prof, MARGIN = 1, FUN = min), FUN = "-")
+mat <- sweep(x = mat, MARGIN = 1, STATS = apply(X = mat, MARGIN = 1, FUN = max), FUN = "/")
+# pdf(file = "10_immune_subclust_annot_outs/heatmap_0-1_scaled_profiles.pdf", width = 6, height = 8)
+pheatmap::pheatmap(mat, color = viridis::plasma(n = 101),
+                   fontsize_col = 10, show_rownames = F,
+                   treeheight_row = 8, treeheight_col = 8, 
+                   main = "0-1 scaled profiles")
+# dev.off()
+
+# limma-trend + quantile normalization (no voom)
+mm <- model.matrix(~0+sub_leiden_res_0.45, 
+                   data = adata$obs |> 
+                     dplyr::mutate(sub_leiden_res_0.45 = as.character(sub_leiden_res_0.45) |> factor(levels = 1:11)))
+colnames(mm) <- paste0("c", 1:11)
+lfit <- limma::lmFit(limma::normalizeQuantiles(t(log2(denoised))), mm)
+
+contrast_list <- list()
+for (clst in levels(adata$obs$sub_leiden_res_0.45)) {
+  contrast_list[[clst]] <- mm[adata$obs$sub_leiden_res_0.45 == clst,] |> colMeans()
+}
+
+GetClusterMarks <- function(clst) {
+  clst_oi <- contrast_list[[clst]]
+  other_clsts <- Reduce(f = "+", x = contrast_list[names(contrast_list) != clst])/(length(contrast_list[names(contrast_list) != clst]))
+  clst_vs_other <- clst_oi-other_clsts
+  tmp <- limma::contrasts.fit(lfit, clst_vs_other)
+  res <- limma::eBayes(tmp, trend = T, robust = T) |> limma::topTable(number = Inf)
+  colnames(res) <- c("log2FC", "AveExpr", "t", "p", "p_adj", "B")
+  res$gene <- rownames(res)
+  rownames(res) <- 1:nrow(res)
+  res$cluster <- clst
+  return(res)
+}
+
+library(magrittr)
+cluster_marks_limma <- lapply(as.list(unique(adata$obs$sub_leiden_res_0.45)), GetClusterMarks) |> dplyr::bind_rows()
+cluster_marks_limma %<>% dplyr::group_by(cluster) %<>% dplyr::arrange(cluster, desc(log2FC), p_adj)
+
+top_marks <- dplyr::group_by(cluster_marks_limma, cluster) |> 
+  dplyr::mutate(rank = order(log2FC, decreasing = T)) |> 
+  dplyr::group_by(cluster) |> 
+  dplyr::top_n(n = -10, wt = rank)
+top_marks <- tidyr::pivot_wider(data = top_marks, id_cols = rank, names_from = cluster, values_from = gene) |> 
+  dplyr::arrange(rank)
+
+# write.csv(x = top_marks, file = "10_immune_subclust_annot_outs/cluster_markers_by_limma-trend.csv", row.names = F)
+
+# pdf(file = "10_immune_subclust_annot_outs/cluster_markers_by_limma-trend_overall_MA_plot.pdf", width = 6, height = 4)
+plot(x = cluster_marks_limma$AveExpr, y = cluster_marks_limma$log2FC, pch = 16, cex = 0.5, xlab = "AveExpr", ylab = "log2FC", main = "MA Plot")
+abline(h = 0, lwd = 4, col = "red")
+# dev.off()
+
+# pdf(file = "10_immune_subclust_annot_outs/cluster_markers_by_limma-trend_heatmap.pdf", width = 6, height = 10)
+pheatmap::pheatmap(mat[top_marks[,-1] |> unlist() |> unique(), ], 
+                   color = viridis::plasma(n = 101), 
+                   fontsize_col = 10, fontsize_row = 7, 
+                   cellheight = 6, cellwidth = 12, 
+                   treeheight_row = 8, treeheight_col = 8, 
+                   main = "Markers by limma-trend"
+)
+# dev.off()
+
+celltype_l2_map <- c(
+  "1" = "Macrophage1",
+  "2" = "mDC",
+  "3" = "Macrophage2",
+  "4" = "Plasmablast",
+  "5" = "T and NK",
+  "6" = "T and NK",
+  "7" = "T and NK",
+  "8" = "T and NK",
+  "9" = "Plasma",
+  "10" = "pDC", 
+  "11" = "B"
+)
+
+adata$obs$celltype_level2 <- plyr::mapvalues(x = adata$obs$sub_leiden_res_0.45, from = names(celltype_l2_map), to = celltype_l2_map)
+# pdf("10_immune_subclust_annot_outs/umap_by_celltypes_level2_immune.pdf", width = 6, height = 6)
+plot_embedding(adata$obs$celltype_level2, adata$obsm["X_umap"], rasterize = T, labels_discrete = F) + 
+  labs(title = "Cell Types (level 2)", x = "UMAP1", y = "UMAP2")
+# dev.off()
+
+# Saving 
+adata$write_h5ad("sgroi-tnbc_filtered_immune_subset.h5ad")
 
