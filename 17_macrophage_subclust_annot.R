@@ -6,7 +6,7 @@ library(BPCells)
 library(Matrix)
 
 # Reading the data
-adata = anndataR::read_h5ad(path = "sgroi-tnbc_filtered_tcell_subset.h5ad", mode = "r+")
+adata = anndataR::read_h5ad(path = "sgroi-tnbc_filtered_macrophage_subset.h5ad", mode = "r+")
 
 # UMAP using the scVI dimensions
 UM <- uwot::umap(X = adata$obsm$X_scVI, n_neighbors = 30, min_dist = 0.25, metric = "euclidean", nn_method = "hnsw", spread = 2, 
@@ -17,6 +17,7 @@ adata$obsm$X_umap <- UM
 
 # Viz
 plot_embedding(source = adata$obs$patient, embedding = adata$obsm$X_umap, rasterize = T, labels_discrete = F)
+plot_embedding(source = adata$obs$celltype_level2, embedding = adata$obsm$X_umap, rasterize = T, labels_discrete = F)
 
 # Normalization
 cts <- adata$layers$counts |>  as("CsparseMatrix")
@@ -42,8 +43,8 @@ iterative_clustering <- dplyr::bind_cols(iterative_clustering)
 colnames(iterative_clustering) <- paste("sub_sub_leiden_res", colnames(iterative_clustering), sep = "_")
 
 # Plotting
-# dir.create("12_tcell_subclust_annot_outs")
-# pdf(file = "12_tcell_subclust_annot_outs/umap_by_clusters.pdf", width = 6, height = 6)
+# dir.create("17_macrophage_subclust_annot_outs")
+# pdf(file = "17_macrophage_subclust_annot_outs/umap_by_clusters.pdf", width = 6, height = 6)
 for (nm in colnames(iterative_clustering)) {
   p <- plot_embedding(iterative_clustering[[nm]], adata$obsm$X_umap, rasterize = T, labels_discrete = F) + 
     ggplot2::labs(title = nm)
@@ -56,22 +57,39 @@ adata$obs <- cbind(adata$obs, iterative_clustering)
 
 # Canonical markers
 library(ggplot2)
-# pdf("12_tcell_subclust_annot_outs/umap_by_rna_markers_tcells.pdf", width = 12, height = 12)
+# pdf("17_macrophage_subclust_annot_outs/umap_by_rna_markers_macrophages.pdf", width = 12, height = 12)
 plot_embedding(
   source = Matrix::t(adata$layers$lognorm) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names),
   embedding = adata$obsm$X_umap,
-  features = c("CD4", 
-               "CD8A",
-               "CD8B",
+  features = c("IL4", 
+               "IL13",
+               "CXCL13", 
+               "CXCL1", 
+               "CXCL2", 
+               "CCL18", 
+               "CCL20", 
+               "CCL26", 
+               "IL10", 
+               "TGFBI", 
+               "TGFB1"
+  ), 
+  rasterize = T,
+  colors_continuous = viridis::viridis(n = 71)
+) & 
+  labs(x = "UMAP1", y = "UMAP2")
+plot_embedding(
+  source = Matrix::t(adata$layers$lognorm) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names),
+  embedding = adata$obsm$X_umap,
+  features = c("IFNG", 
                "TNF", 
-               "PRF1", 
-               "FOXP3", 
-               "CTLA4", 
-               "GNLY", 
-               "NKG7", 
-               "GZMB", 
-               "GZMA", 
-               "IFNG"
+               "IL1B", 
+               "IL6", 
+               "CCL8", 
+               "CCL19", 
+               "CCL20", 
+               "CXCL5", 
+               "CXCL9", 
+               "CXCL10"
   ), 
   rasterize = T,
   colors_continuous = viridis::viridis(n = 71)
@@ -80,32 +98,14 @@ plot_embedding(
 # dev.off()
 
 # Annotating
-# 0.35 looks reasonable, so we will continue with that.
-# pdf("12_tcell_subclust_annot_outs/umap_by_leiden_res_0.35_tcells.pdf", width = 6, height = 6)
-plot_embedding(source = adata$obs$sub_sub_leiden_res_0.35, embedding = adata$obsm$X_umap, rasterize = T, labels_discrete = F) + 
-  labs(x = "UMAP1", y = "UMAP2", title = "Resolution = 0.35")
-# dev.off()
-
-# Protein
-protein_mat <- adata$obs[,19:26] |> t() |> as.matrix() |> as("CsparseMatrix")
-# pdf("12_tcell_subclust_annot_outs/umap_by_protein_markers_tcells.pdf", width = 12, height = 12)
-plot_embedding(
-  source = protein_mat,
-  embedding = adata$obsm$X_umap,
-  features = c("CD45", 
-               "CD4", 
-               "CD3E", 
-               "CD8A", 
-               "CD20"
-  ),
-  rasterize = T, 
-  colors_continuous = viridis::viridis(n = 71, option = "C")
-) & 
-  labs(x = "UMAP1", y = "UMAP2")
+# 0.2 looks reasonable, so we will continue with that.
+# pdf("17_macrophage_subclust_annot_outs/umap_by_leiden_res_0.2_macrophages.pdf", width = 6, height = 6)
+plot_embedding(source = adata$obs$sub_sub_leiden_res_0.2, embedding = adata$obsm$X_umap, rasterize = T, labels_discrete = F) + 
+  labs(x = "UMAP1", y = "UMAP2", title = "Resolution = 0.2")
 # dev.off()
 
 # Saving
-anndataR::write_h5ad(object = adata, path = "sgroi-tnbc_filtered_tcell_subset.h5ad", mode = "w")
+anndataR::write_h5ad(object = adata, path = "sgroi-tnbc_filtered_macrophage_subset.h5ad", mode = "w")
 
 # Need to find cluster markers: 
 rm(list = ls())
@@ -119,23 +119,21 @@ library(ggplot2)
 SCVI <- reticulate::import("scvi")
 ad <- reticulate::import("anndata")
 
-adata <- ad$read_h5ad("sgroi-tnbc_filtered_tcell_subset.h5ad")
+adata <- ad$read_h5ad("sgroi-tnbc_filtered_macrophage_subset.h5ad")
 
-model <- SCVI$model$SCVI$load("11_tcell_subclust_scVI_outs/scVI_model4")
+model <- SCVI$model$SCVI$load("16_macrophage_subclust_scVI_outs/scVI_model5")
 denoised <- model$get_normalized_expression(adata = adata, library_size = 1000)
 denoised_scaled <- apply(X = denoised, MARGIN = 2, FUN = scale)
 rownames(denoised_scaled) <- rownames(denoised)
 
 # Making profiles for each cluster
-# renv::install("NanoString-BioStats/InSituType")
 prof <- InSituType::Estep(counts = denoised_scaled, 
                           assay_type = "protein",
-                          clust = paste0("c", adata$obs$sub_sub_leiden_res_0.35), 
+                          clust = paste0("c", adata$obs$sub_sub_leiden_res_0.2), 
                           neg = array(data = 0, dim = adata$shape[[1]]) # We do not have negative probe info
 )$profiles
 
-# renv::install("pheatmap", prompt = F)
-# pdf(file = "12_tcell_subclust_annot_outs/heatmap_z-score_scaled_profiles.pdf", width = 6, height = 8)
+# pdf(file = "17_macrophage_subclust_annot_outs/heatmap_z-score_scaled_profiles.pdf", width = 6, height = 8)
 pheatmap::pheatmap(prof, 
                    color = viridis::plasma(n = 101),
                    fontsize_col = 10, show_rownames = F,
@@ -145,15 +143,15 @@ pheatmap::pheatmap(prof,
 # dev.off()
 
 # limma-trend + quantile normalization (no voom)
-mm <- model.matrix(~0+sub_sub_leiden_res_0.35, 
+mm <- model.matrix(~0+sub_sub_leiden_res_0.2, 
                    data = adata$obs |> 
-                     dplyr::mutate(sub_sub_leiden_res_0.35 = as.character(sub_sub_leiden_res_0.35) |> factor(levels = 1:6)))
-colnames(mm) <- paste0("c", 1:6)
+                     dplyr::mutate(sub_sub_leiden_res_0.2 = as.character(sub_sub_leiden_res_0.2) |> factor(levels = 1:3)))
+colnames(mm) <- paste0("c", 1:3)
 lfit <- limma::lmFit(limma::normalizeQuantiles(t(log2(denoised))), mm)
 
 contrast_list <- list()
-for (clst in levels(adata$obs$sub_sub_leiden_res_0.35)) {
-  contrast_list[[clst]] <- mm[adata$obs$sub_sub_leiden_res_0.35 == clst,] |> colMeans()
+for (clst in levels(adata$obs$sub_sub_leiden_res_0.2)) {
+  contrast_list[[clst]] <- mm[adata$obs$sub_sub_leiden_res_0.2 == clst,] |> colMeans()
 }
 
 GetClusterMarks <- function(clst) {
@@ -170,7 +168,7 @@ GetClusterMarks <- function(clst) {
 }
 
 library(magrittr)
-cluster_marks_limma <- lapply(as.list(unique(adata$obs$sub_sub_leiden_res_0.35)), GetClusterMarks) |> dplyr::bind_rows()
+cluster_marks_limma <- lapply(as.list(unique(adata$obs$sub_sub_leiden_res_0.2)), GetClusterMarks) |> dplyr::bind_rows()
 cluster_marks_limma %<>% dplyr::group_by(cluster) %<>% dplyr::arrange(cluster, desc(log2FC), p_adj)
 
 top_marks <- dplyr::group_by(cluster_marks_limma, cluster) |> 
@@ -180,34 +178,48 @@ top_marks <- dplyr::group_by(cluster_marks_limma, cluster) |>
 top_marks <- tidyr::pivot_wider(data = top_marks, id_cols = rank, names_from = cluster, values_from = gene) |> 
   dplyr::arrange(rank)
 
-# pdf(file = "12_tcell_subclust_annot_outs/cluster_markers_by_limma-trend_overall_MA_plot.pdf", width = 6, height = 4)
+# pdf(file = "17_macrophage_subclust_annot_outs/cluster_markers_by_limma-trend_overall_MA_plot.pdf", width = 6, height = 4)
 plot(x = cluster_marks_limma$AveExpr, y = cluster_marks_limma$log2FC, pch = 16, cex = 0.5, xlab = "AveExpr", ylab = "log2FC", main = "MA Plot")
 abline(h = 0, lwd = 4, col = "red")
 # dev.off()
 
-# pdf(file = "12_tcell_subclust_annot_outs/cluster_markers_by_limma-trend_heatmap.pdf", width = 6, height = 10)
+# pdf(file = "17_macrophage_subclust_annot_outs/cluster_markers_by_limma-trend_heatmap.pdf", width = 6, height = 10)
 pheatmap::pheatmap(prof[unique(top_marks[,-1] |> as.matrix() |> as.vector()), ], 
                    color = viridis::plasma(n = 101), 
                    breaks = seq(-1, 1, length.out = 102),
                    fontsize_col = 10, fontsize_row = 10, 
-                   cellheight = 8, cellwidth = 10, 
+                   cellheight = 20, cellwidth = 20, 
                    treeheight_row = 8, treeheight_col = 8, 
                    main = "Markers by limma-trend"
 )
 # dev.off()
 
-# pdf(file = "12_tcell_subclust_annot_outs/canonical_markers_heatmap.pdf", width = 6, height = 10)
+# pdf(file = "17_macrophage_subclust_annot_outs/canonical_markers_heatmap.pdf", width = 6, height = 10)
 marks <- c(
-  "CD2", "CD3D", "CD3E", "CD247", 
-  "CD4", "CD8A", "CD8B",
-  "CD69", "CD38", 
-  "PDCD1", "HAVCR2", "LAG3", "TIGIT", "ENTPD1", 
-  "CD160", 
-  "GZMA", "GZMB", "GZMH", "GZMK",
-  "PRF1", "NKG7", "GNLY", "IFNG", "TNF", 
-  "IL2RA", "FOXP3", "CTLA4", 
-  "CCR7", "SELL", "IL7R", "CD27", 
-  "TBX21", "GATA3", "RORC", "EOMES", "TCF7"
+  "IL4", 
+  "IL13",
+  "CXCL13", 
+  "CXCL1", 
+  "CXCL2", 
+  "CCL18", 
+  "CCL20", 
+  "CCL26", 
+  "IL10", 
+  "TGFBI", 
+  "TGFB1",
+  
+  "IFNG", 
+  "TNF", 
+  "IL1B", 
+  "IL6", 
+  "CCL8", 
+  "CCL19", 
+  "CCL20", 
+  "CXCL5", 
+  "CXCL9", 
+  "CXCL10",
+  
+  "S100A9"
 )
 pheatmap::pheatmap(prof[marks, ], 
                    color = viridis::plasma(n = 101), 
@@ -219,12 +231,12 @@ pheatmap::pheatmap(prof[marks, ],
 )
 # dev.off()
 
-adata = anndataR::read_h5ad(path = "sgroi-tnbc_filtered_tcell_subset.h5ad", mode = "r+")
+adata <- anndataR::read_h5ad(path = "sgroi-tnbc_filtered_macrophage_subset.h5ad", mode = "r+")
 library(data.table)
 psb <- presto::collapse_counts(counts_mat = Matrix::t(adata$layers$counts) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names),
                                meta_data = adata$obs,
                                get_norm = F,
-                               varnames = c("sub_sub_leiden_res_0.35", "patient"), 
+                               varnames = c("sub_sub_leiden_res_0.2", "patient"), 
                                min_cells_per_group = 20)
 psb$meta_data$logUMI <- log(psb$counts_mat |> colSums())
 
@@ -233,21 +245,21 @@ library(lme4)
 library(purrr)
 library(dplyr)
 # presto_res <- presto.presto(
-#   y ~ 1 + (1|sub_sub_leiden_res_0.35) + (1|sub_sub_leiden_res_0.35:patient) + (1|patient) + offset(logUMI),
+#   y ~ 1 + (1|sub_sub_leiden_res_0.2) + (1|sub_sub_leiden_res_0.2:patient) + (1|patient) + offset(logUMI),
 #   psb$meta_data,
 #   psb$counts_mat,
 #   size_varname = "logUMI",
-#   effects_cov = c("sub_sub_leiden_res_0.35"),
+#   effects_cov = c("sub_sub_leiden_res_0.2"),
 #   ncore = 8,
 #   min_sigma = 0.05,
 #   family = "poisson",
 #   nsim = 1000
 # )
-# saveRDS(object = presto_res, file = "12_tcell_subclust_annot_outs/presto_model_psb.RDS")
+# saveRDS(object = presto_res, file = "17_macrophage_subclust_annot_outs/presto_model_psb.RDS")
 
-presto_res <- readRDS(file = "12_tcell_subclust_annot_outs/presto_model_psb.RDS")
+presto_res <- readRDS(file = "17_macrophage_subclust_annot_outs/presto_model_psb.RDS")
 
-contrasts_mat <- make_contrast.presto(presto_res, "sub_sub_leiden_res_0.35")
+contrasts_mat <- make_contrast.presto(presto_res, "sub_sub_leiden_res_0.2")
 effects_marginal <- contrasts.presto(presto_res, contrasts_mat, one_tailed = T) |> 
   dplyr::mutate(cluster = contrast) |> 
   dplyr::mutate(
@@ -264,33 +276,33 @@ p <- effects_marginal |>
   ggplot() + 
   scattermore::geom_scattermore(mapping = aes(x = logFC, y = -log10(fdr)), pointsize = 3) + 
   geom_hline(yintercept = -log10(0.01)) + 
-  geom_vline(xintercept = 1.5) + 
-  ggrepel::geom_text_repel(data = effects_marginal |> filter(fdr < 0.01 & logFC > 1.5), 
+  geom_vline(xintercept = 1) + 
+  ggrepel::geom_text_repel(data = effects_marginal |> filter(fdr < 0.01 & logFC > 1), 
                            mapping = aes(x = logFC, y = -log10(fdr), label = feature), 
-                           color = "red", size = 3, max.overlaps = 30, box.padding = 0.25) + 
+                           color = "red", size = 2, max.overlaps = 30, box.padding = 0.25) + 
   theme_classic() + 
   labs(title = "Subcluster Markers") +
   facet_wrap(.~cluster, ncol = 3, scales = "free")
 p
-# ggsave(filename = "12_tcell_subclust_annot_outs/sub_sub_leiden_res_0.35_cluster_markers_volcano_plots.pdf", height = 12, width = 10)
+# ggsave(filename = "17_macrophage_subclust_annot_outs/sub_sub_leiden_res_0.2_cluster_markers_volcano_plots.pdf", height = 6, width = 10)
 
-MARKS <- effects_marginal |> filter(fdr < 0.01 & logFC > 1.5) |> arrange(cluster, desc(zscore)) |> pull(feature) |> unique()
+MARKS <- effects_marginal |> filter(fdr < 0.01 & logFC > 1) |> arrange(cluster, desc(zscore)) |> pull(feature) |> unique()
 BPCells::plot_dot(source = Matrix::t(adata$layers$lognorm) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names), 
                   features = MARKS, 
-                  groups = adata$obs$sub_sub_leiden_res_0.35) + 
+                  groups = adata$obs$sub_sub_leiden_res_0.2) + 
   scale_color_viridis_c(oob = scales::squish, limits = c(-1, 1), option = "B", direction = -1) + 
   labs(y = "Cluster", title = "DE Markers") + 
-  theme(axis.title.x = element_blank())
-# ggsave(filename = "12_tcell_subclust_annot_outs/bubble_plot_for_DE_markers.pdf", height = 4, width = 12)
+  theme(axis.title.x = element_blank(), axis.text.x = element_text(size = 4))
+# ggsave(filename = "17_macrophage_subclust_annot_outs/bubble_plot_for_DE_markers.pdf", height = 4, width = 16)
 BPCells::plot_dot(source = Matrix::t(adata$layers$lognorm) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names), 
                   features = marks, 
-                  groups = adata$obs$sub_sub_leiden_res_0.35) + 
+                  groups = adata$obs$sub_sub_leiden_res_0.2) + 
   scale_color_viridis_c(oob = scales::squish, limits = c(-1, 1), option = "B", direction = -1) + 
   labs(y = "Cluster", title = "Canonical Markers") + 
   theme(axis.title.x = element_blank())
-# ggsave(filename = "12_tcell_subclust_annot_outs/bubble_plot_for_canonical_markers.pdf", height = 4, width = 12)
+# ggsave(filename = "17_macrophage_subclust_annot_outs/bubble_plot_for_canonical_markers.pdf", height = 4, width = 10)
 
-top_marks <- dplyr::filter(effects_marginal, fdr < 0.01 & logFC > 1.5) |> 
+top_marks <- dplyr::filter(effects_marginal, fdr < 0.01 & logFC > 1) |> 
   dplyr::group_by(cluster) |> 
   dplyr::mutate(rank = order(zscore, decreasing = T)) |> 
   dplyr::group_by(cluster) |> 
@@ -299,68 +311,15 @@ top_marks <- tidyr::pivot_wider(data = top_marks, id_cols = rank, names_from = c
   dplyr::arrange(rank)
 BPCells::plot_dot(source = Matrix::t(adata$layers$lognorm) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names), 
                   features = top_marks[,-1] |> unlist() |> unique(), 
-                  groups = adata$obs$sub_sub_leiden_res_0.35, 
+                  groups = adata$obs$sub_sub_leiden_res_0.2, 
                   group_order = colnames(top_marks[,-1])) + 
   scale_color_viridis_c(oob = scales::squish, limits = c(-1, 2), option = "B", direction = -1) + 
   labs(y = "Cluster", title = "DE Markers") + 
   theme(axis.title.x = element_blank())
-# ggsave(filename = "12_tcell_subclust_annot_outs/bubble_plot_for_DE_markers_alt_layout.pdf", height = 4, width = 12)
+# ggsave(filename = "17_macrophage_subclust_annot_outs/bubble_plot_for_DE_markers_alt_layout.pdf", height = 4, width = 10)
 
 # Determining the cluster identities: 
-celltype_l3_map <- c(
-  "1" = "Treg",
-  "2" = "T.CD4.naive",
-  "3" = "NK",
-  "4" = "T.CD8.activated.proliferative",
-  "5" = "T.CD8.exhausted",
-  "6" = "T.CD8.activated.classical"
-)
-adata$obs$celltype_level3 <- plyr::mapvalues(x = adata$obs$sub_sub_leiden_res_0.35, from = names(celltype_l3_map), to = celltype_l3_map)
-# pdf("12_tcell_subclust_annot_outs/umap_by_celltypes_level3_t_cells.pdf", width = 6, height = 6)
-plot_embedding(adata$obs$celltype_level3, adata$obsm$X_umap, rasterize = T, labels_discrete = F) + 
-  labs(title = "Cell Types (level 3)", x = "UMAP1", y = "UMAP2")
-# dev.off()
+### TBD
 
-# Saving 
-anndataR::write_h5ad(object = adata, path = "sgroi-tnbc_filtered_tcell_subset.h5ad", mode = "w")
 
-# ## VOID THIS, PER DENNIS. ##
-# # singleR
-# rm(list = ls())
-# .rs.restartR(clean = T)
-# 
-# adata <- anndataR::read_h5ad(path = "sgroi-tnbc_filtered_tcell_subset.h5ad", mode = "r+")
-# 
-# library(Seurat)
-# cd4 <- readRDS("~/Downloads/CD4.rds")
-# cd8 <- readRDS("~/Downloads/CD8.rds")
-# intersect(cd4$batch, cd8$batch)
-# 
-# refnorm <- cbind(cd4@assays$RNA@data, cd8@assays$RNA@data)
-# refmeta <- dplyr::bind_rows(cd4@meta.data, cd8@meta.data)
-# refmeta$celltype_broad <- dplyr::case_when(grepl(x = refmeta$cell.type, pattern = "Treg") ~ "Treg", 
-#                                            refmeta$cell.type %in% c("CD8_c1_Tex", "CD8_c7_p-Tex") ~ "T.CD8.ex",
-#                                            grepl(x = refmeta$cell.type, pattern = "CD4") ~ "T.CD4", 
-#                                            grepl(x = refmeta$cell.type, pattern = "CD8") ~ "T.CD8", 
-#                                            )
-# tcell_ref <- SingleCellExperiment::SingleCellExperiment(
-#   assays = list(logcounts = refnorm), 
-#   colData = refmeta
-# )
-# 
-# # renv::install("https://bioconductor.org/packages/3.20/bioc/bin/macosx/big-sur-arm64/contrib/4.4/SingleR_2.8.0.tgz", type = "binary")
-# # renv::install("bioc::scran")
-# library(SingleR)
-# res <- SingleR(
-#   test = adata$layers$lognorm |> t() |> as("CsparseMatrix") |> magrittr::set_rownames(adata$var_names) |> magrittr::set_colnames(adata$obs_names), 
-#   ref = tcell_ref, labels = tcell_ref$celltype_broad, 
-#   aggr.ref = T, BPPARAM = BiocParallel::MulticoreParam(4))
-# 
-# library(BPCells)
-# library(ggplot2)
-# plot_embedding(source = res@listData[["pruned.labels"]], embedding = adata$obsm$X_umap, rasterize = T, labels_discrete = F) + 
-#   labs(x = "UMAP1", y = "UMAP2", title = "SingleR Results")
-
-# Finally, we will assign the lower-quality T cells to a "T.low.quality" cluster
-# when we return to working with the full object.
 

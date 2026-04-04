@@ -138,41 +138,55 @@ p <- effects_marginal |>
 p
 # ggsave(filename = "10_immune_subclust_annot_outs/sub_leiden_res_0.45_cluster_markers_volcano_plots.pdf", height = 12, width = 10)
 
-# Determining the cluster identities: 
-effects_marginal[effects_marginal$cluster == 1 & effects_marginal$logFC > 1.5, ] |> arrange(fdr) |> knitr::kable() # TAM
-effects_marginal[effects_marginal$cluster == 2 & effects_marginal$logFC > 2, ] |> arrange(fdr) # mregDC
-effects_marginal[effects_marginal$cluster == 3 & effects_marginal$logFC > 1.5, ] |> arrange(fdr) |> knitr::kable() # TAM
-effects_marginal[effects_marginal$cluster == 4 & effects_marginal$logFC > 2, ] |> arrange(fdr) # Plasmablast
-effects_marginal[effects_marginal$cluster == 5 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # Tc and NK, probably activated
-effects_marginal[effects_marginal$cluster == 6 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # Treg
-effects_marginal[effects_marginal$cluster == 7 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # also Tc and NK, probably exhausted
-effects_marginal[effects_marginal$cluster == 8 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # Memory T
-effects_marginal[effects_marginal$cluster == 9 & effects_marginal$logFC > 2, ] |> arrange(fdr) # Plasma
-effects_marginal[effects_marginal$cluster == 10 & effects_marginal$logFC > 2, ] |> arrange(fdr) # pDC
-effects_marginal[effects_marginal$cluster == 11 & effects_marginal$logFC > 2, ] |> arrange(fdr) # B
+## VOID THIS, PER BLAKE. ##
+# # Determining the cluster identities: 
+# effects_marginal[effects_marginal$cluster == 1 & effects_marginal$logFC > 1.5, ] |> arrange(fdr) |> knitr::kable() # TAM
+# effects_marginal[effects_marginal$cluster == 2 & effects_marginal$logFC > 2, ] |> arrange(fdr) # mregDC
+# effects_marginal[effects_marginal$cluster == 3 & effects_marginal$logFC > 1.5, ] |> arrange(fdr) |> knitr::kable() # TAM
+# effects_marginal[effects_marginal$cluster == 4 & effects_marginal$logFC > 2, ] |> arrange(fdr) # Plasmablast
+# effects_marginal[effects_marginal$cluster == 5 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # Tc and NK, probably activated
+# effects_marginal[effects_marginal$cluster == 6 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # Treg
+# effects_marginal[effects_marginal$cluster == 7 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # also Tc and NK, probably exhausted
+# effects_marginal[effects_marginal$cluster == 8 & effects_marginal$logFC > 2, ] |> arrange(fdr) |> knitr::kable() # Memory T
+# effects_marginal[effects_marginal$cluster == 9 & effects_marginal$logFC > 2, ] |> arrange(fdr) # Plasma
+# effects_marginal[effects_marginal$cluster == 10 & effects_marginal$logFC > 2, ] |> arrange(fdr) # pDC
+# effects_marginal[effects_marginal$cluster == 11 & effects_marginal$logFC > 2, ] |> arrange(fdr) # B
+# 
+# # Labeling level 2 of cell-typing
+# celltype_l2_map <- c(
+#   "1" = "TAM",
+#   "2" = "mregDC",
+#   "3" = "TAM",
+#   "4" = "Plasmablast",
+#   "5" = "Activated Tc and NK",
+#   "6" = "Treg",
+#   "7" = "Exhausted Tc and NK",
+#   "8" = "Memory T",
+#   "9" = "Plasma",
+#   "10" = "pDC", 
+#   "11" = "B"
+# )
+# adata$obs$celltype_level2 <- plyr::mapvalues(x = adata$obs$sub_leiden_res_0.45, from = names(celltype_l2_map), to = celltype_l2_map)
+# # pdf("10_immune_subclust_annot_outs/umap_by_celltypes_level2_immune.pdf", width = 6, height = 6)
+# plot_embedding(adata$obs$celltype_level2, adata$obsm$X_umap, rasterize = T, labels_discrete = F) + 
+#   labs(title = "Cell Types (level 2)", x = "UMAP1", y = "UMAP2")
+# # dev.off()
 
-# Labeling level 2 of cell-typing
-celltype_l2_map <- c(
-  "1" = "TAM",
-  "2" = "mregDC",
-  "3" = "TAM",
-  "4" = "Plasmablast",
-  "5" = "Activated Tc and NK",
-  "6" = "Treg",
-  "7" = "Exhausted Tc and NK",
-  "8" = "Memory T",
-  "9" = "Plasma",
-  "10" = "pDC", 
-  "11" = "B"
-)
-adata$obs$celltype_level2 <- plyr::mapvalues(x = adata$obs$sub_leiden_res_0.45, from = names(celltype_l2_map), to = celltype_l2_map)
-# pdf("10_immune_subclust_annot_outs/umap_by_celltypes_level2_immune.pdf", width = 6, height = 6)
-plot_embedding(adata$obs$celltype_level2, adata$obsm$X_umap, rasterize = T, labels_discrete = F) + 
-  labs(title = "Cell Types (level 2)", x = "UMAP1", y = "UMAP2")
-# dev.off()
-
-# Saving 
-anndataR::write_h5ad(object = adata, path = "sgroi-tnbc_filtered_immune_subset.h5ad", mode = "w")
+top_marks <- dplyr::filter(effects_marginal, fdr < 0.01 & logFC > 1.5) |> 
+  dplyr::group_by(cluster) |> 
+  dplyr::mutate(rank = order(zscore, decreasing = T)) |> 
+  dplyr::group_by(cluster) |> 
+  dplyr::top_n(n = -10, wt = rank)
+top_marks <- tidyr::pivot_wider(data = top_marks, id_cols = rank, names_from = cluster, values_from = feature) |> 
+  dplyr::arrange(rank)
+BPCells::plot_dot(source = Matrix::t(adata$layers$lognorm) |> as("CsparseMatrix") |> magrittr::set_rownames(value = adata$var_names), 
+                  features = top_marks[,-1] |> unlist() |> unique(), 
+                  groups = adata$obs$sub_leiden_res_0.45, 
+                  group_order = colnames(top_marks[,-1])) + 
+  scale_color_viridis_c(oob = scales::squish, limits = c(-1, 2), option = "B", direction = -1) + 
+  labs(y = "Cluster", title = "DE Markers") + 
+  theme(axis.title.x = element_blank())
+# ggsave(filename = "10_immune_subclust_annot_outs/bubble_plot_for_DE_markers.pdf", height = 5, width = 16)
 
 # Trying a different approach
 # First, we will set up a uv venv here.
@@ -198,32 +212,25 @@ adata <- ad$read_h5ad("sgroi-tnbc_filtered_immune_subset.h5ad")
 
 model <- SCVI$model$SCVI$load("09_immune_subclust_scVI_outs/scVI_model3")
 denoised <- model$get_normalized_expression(adata = adata, library_size = 1000)
+denoised_scaled <- apply(X = denoised, MARGIN = 2, FUN = scale)
+rownames(denoised_scaled) <- rownames(denoised)
 
 # Making profiles for each cluster
 # renv::install("NanoString-BioStats/InSituType")
-prof <- InSituType::Estep(counts = denoised,
+prof <- InSituType::Estep(counts = denoised_scaled, 
+                          assay_type = "protein",
                           clust = paste0("c", adata$obs$sub_leiden_res_0.45), 
                           neg = array(data = 0, dim = adata$shape[[1]]) # We do not have negative probe info
 )$profiles
 
 # renv::install("pheatmap", prompt = F)
-# z-score scaling
-mat <- apply(X = prof, MARGIN = 1, FUN = scale) |> t() |> magrittr::set_colnames(colnames(prof))
 # pdf(file = "10_immune_subclust_annot_outs/heatmap_z-score_scaled_profiles.pdf", width = 6, height = 8)
-pheatmap::pheatmap(mat, color = viridis::plasma(n = 101),
+pheatmap::pheatmap(prof, 
+                   color = viridis::plasma(n = 101),
                    fontsize_col = 10, show_rownames = F,
                    treeheight_row = 8, treeheight_col = 8, 
-                   main = "z-score scaled profiles")
-# dev.off()
-
-# 0-1 scaling
-mat <- sweep(x = prof, MARGIN = 1, STATS = apply(X = prof, MARGIN = 1, FUN = min), FUN = "-")
-mat <- sweep(x = mat, MARGIN = 1, STATS = apply(X = mat, MARGIN = 1, FUN = max), FUN = "/")
-# pdf(file = "10_immune_subclust_annot_outs/heatmap_0-1_scaled_profiles.pdf", width = 6, height = 8)
-pheatmap::pheatmap(mat, color = viridis::plasma(n = 101),
-                   fontsize_col = 10, show_rownames = F,
-                   treeheight_row = 8, treeheight_col = 8, 
-                   main = "0-1 scaled profiles")
+                   main = "Mean Z-score Profiles", 
+                   scale = "none")
 # dev.off()
 
 # limma-trend + quantile normalization (no voom)
@@ -262,18 +269,17 @@ top_marks <- dplyr::group_by(cluster_marks_limma, cluster) |>
 top_marks <- tidyr::pivot_wider(data = top_marks, id_cols = rank, names_from = cluster, values_from = gene) |> 
   dplyr::arrange(rank)
 
-# write.csv(x = top_marks, file = "10_immune_subclust_annot_outs/cluster_markers_by_limma-trend.csv", row.names = F)
-
 # pdf(file = "10_immune_subclust_annot_outs/cluster_markers_by_limma-trend_overall_MA_plot.pdf", width = 6, height = 4)
 plot(x = cluster_marks_limma$AveExpr, y = cluster_marks_limma$log2FC, pch = 16, cex = 0.5, xlab = "AveExpr", ylab = "log2FC", main = "MA Plot")
 abline(h = 0, lwd = 4, col = "red")
 # dev.off()
 
-# pdf(file = "10_immune_subclust_annot_outs/cluster_markers_by_limma-trend_heatmap.pdf", width = 6, height = 10)
-pheatmap::pheatmap(mat[top_marks[,-1] |> unlist() |> unique(), ], 
+# pdf(file = "10_immune_subclust_annot_outs/cluster_markers_by_limma-trend_heatmap.pdf", width = 6, height = 12)
+pheatmap::pheatmap(prof[unique(top_marks[,-1] |> as.matrix() |> as.vector()), ], 
                    color = viridis::plasma(n = 101), 
-                   fontsize_col = 10, fontsize_row = 7, 
-                   cellheight = 6, cellwidth = 12, 
+                   breaks = seq(-1, 2, length.out = 102),
+                   fontsize_col = 10, fontsize_row = 10, 
+                   cellheight = 8, cellwidth = 10, 
                    treeheight_row = 8, treeheight_col = 8, 
                    main = "Markers by limma-trend"
 )

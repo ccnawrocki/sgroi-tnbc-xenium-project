@@ -32,5 +32,7 @@ adata.shape
 # We end up with >1M cells, before QC.
 adata.write_h5ad("sgroi-tnbc.h5ad")
 
+# Now that I have all the data organized, I will move the individual anndata objects to storage. 
+
 globals().clear()
 
