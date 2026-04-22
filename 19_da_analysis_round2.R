@@ -1,11 +1,11 @@
 rm(list = ls())
 .rs.restartR(clean = T)
 
-# dir.create("19_da_analysis_round2")
+# dir.create("19_da_analysis_round2_outs")
 
 ### Using HieraType Results ----------------------------------------------------
 
-pdf(file = "19_da_analysis_round2/boxplots_with_points_new_T_cell_typing.pdf", width = 6, height = 8)
+pdf(file = "19_da_analysis_round2_outs/boxplots_with_points_new_T_cell_typing.pdf", width = 6, height = 8)
 
 hres <- readRDS(file = "18_hieratype_outs/hieratype_custom_lymphoid_pipeline_results.RDS")
 adata <- anndataR::read_h5ad(path = "sgroi-tnbc_filtered.h5ad", mode = "r+")
@@ -97,7 +97,7 @@ cts <- adata$layers$counts |> magrittr::set_rownames(adata$obs_names) |> magritt
 cts <- cts[idx,]
 cts <- (cts > 0)
 
-pdf(file = "19_da_analysis_round2/boxplots_key_marker_genes_proportion_positive_for_CD8_T_cells_new.pdf", width = 6, height = 8)
+pdf(file = "19_da_analysis_round2_outs/boxplots_key_marker_genes_proportion_positive_for_CD8_T_cells_new.pdf", width = 6, height = 8)
 
 meta <- adata$obs[idx,]
 meta[,c("CXCL13+", "LAG3+", "ENTPD1+", "PDCD1+", "CTLA4+", "TIGIT+", "HAVCR2+", "TNF+", "IFNG+", "PRF1+", "GZMB+", "GZMA+", "ITGAE+", "IL2RA+")] <- 
@@ -236,7 +236,7 @@ dev.off()
 
 ### Using previous results -----------------------------------------------------
 
-pdf(file = "19_da_analysis_round2/boxplots_with_points_old_T_cell_typing.pdf", width = 6, height = 8)
+pdf(file = "19_da_analysis_round2_outs/boxplots_with_points_old_T_cell_typing.pdf", width = 6, height = 8)
 
 d$celltype_simple <- ifelse(test = grepl(pattern = "CD8.activated", x = d$celltype_final), yes = "T.CD8.activated", no = d$celltype_final)
 dtmp <- table(d$patient, d$celltype_simple)[,c("T.CD8.activated", "Treg")]
@@ -325,7 +325,7 @@ cts <- adata$layers$counts |> magrittr::set_rownames(adata$obs_names) |> magritt
 cts <- cts[idx,]
 cts <- (cts > 0)
 
-pdf(file = "19_da_analysis_round2/boxplots_key_marker_genes_proportion_positive_for_CD8_T_cells.pdf", width = 6, height = 8)
+pdf(file = "19_da_analysis_round2_outs/boxplots_key_marker_genes_proportion_positive_for_CD8_T_cells.pdf", width = 6, height = 8)
 
 meta <- adata$obs[idx,]
 meta[,c("CXCL13+", "LAG3+", "ENTPD1+", "PDCD1+", "CTLA4+", "TIGIT+", "HAVCR2+", "TNF+", "IFNG+", "PRF1+", "GZMB+", "GZMA+", "ITGAE+", "IL2RA+")] <- 

@@ -159,8 +159,12 @@ lymphoid_typing <-
                celltype_call_threshold = 0.5
 )
 
+# dir.create("18_hieratype_outs")
+# saveRDS(pipeline_lymphoid, file = "18_hieratype_outs/hieratype_custom_lymphoid_pipeline.RDS")
+# saveRDS(lymphoid_typing, file = "18_hieratype_outs/hieratype_custom_lymphoid_pipeline_results.RDS")
 
 # Visualizing
+lymphoid_typing <- readRDS("18_hieratype_outs/hieratype_custom_lymphoid_pipeline_results.RDS")
 norm <- (adata$layers$lognorm) |> magrittr::set_colnames(rownames(adata$var)) |> magrittr::set_rownames(rownames(adata$obs)) |> as("CsparseMatrix")
 norm <- norm[TandNKcells,]
 fct <- clusterwise_foldchange_metrics(normed = Matrix::t(norm),
@@ -176,11 +180,9 @@ hmsubtype <- marker_heatmap(fct, featsuse = c("CD8A", "CD8B", "CD4", "ENTPD1", "
   ggplot2::labs(fill = "Mean expression in group", title = "T cells")
 
 print(hmsubtype)
-table(adata$obs[TandNKcells,]$patient, lymphoid_typing$post_probs$lymphoidmajor$celltype_granular)
+#ggplot2::ggsave("18_hieratype_outs/t_cells_bubble_plot_canonical_markers.pdf", width = 10, height = 4)
 
-# dir.create("18_hieratype_outs")
-# saveRDS(pipeline_lymphoid, file = "18_hieratype_outs/hieratype_custom_lymphoid_pipeline.RDS")
-# saveRDS(lymphoid_typing, file = "18_hieratype_outs/hieratype_custom_lymphoid_pipeline_results.RDS")
+table(adata$obs[TandNKcells,]$patient, lymphoid_typing$post_probs$lymphoidmajor$celltype_granular)
 
 
 #### Using HieraType for Macrophages -------------------------------------------

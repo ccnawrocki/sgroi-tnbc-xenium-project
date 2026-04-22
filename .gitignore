@@ -38,8 +38,8 @@ renv/
 
 # Data #
 ########
-*.xlsx
-*.csv
+#*.xlsx
+#*.csv
 *.RDS
 *.rds
 *.H5Seurat
@@ -49,21 +49,35 @@ renv/
 *.json
 *.qs2
 *.txt
+*.pickle
+*.pkl
+*.h5
+*.npy
+*.npz
+*.tif
+*.tiff
+*.zarr
 
 
 # Plots #
 #########
-*.pdf
+#*.pdf # PDF is fine for this project
 *.html
-*.png
+#*.png # PNG is fine for this project
 *.jpg
 *.jpeg
-*.png
 *.pptx
-*.svg
+#*.svg # SVG is fine for this project
 
 
 # Folders #
 ###########
-*outs/
+#*outs/ # The outs folders are okay; just not the scVI ones that hold the models.
+*scVI_outs/
+*/autok_model/
+
+
+# AI #
+######
+.positai
 

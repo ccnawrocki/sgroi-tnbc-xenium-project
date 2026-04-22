@@ -1,7 +1,7 @@
 rm(list = ls())
 .rs.restartR(clean = T)
 
-# dir.create("15_da_analysis_final_outs")
+# dir.create("15_da_analysis_outs")
 adata <- anndataR::read_h5ad(path = "sgroi-tnbc_filtered.h5ad", mode = "r+")
 
 # Reconciling all cell-typing results ------------------------------------------
@@ -68,7 +68,7 @@ sample_data$group <- ifelse(test = sample_data$H_norm > -13.5, yes = "HOXB13+", 
 scores$group <- plyr::mapvalues(x = scores$patient, from = sample_data$patient, to = sample_data$group)
 scores <- dplyr::arrange(scores, infl_score)
 
-# pdf("15_da_analysis_final_outs/inflammation_scores_by_patient.pdf", width = 10, height = 6)
+# pdf("15_da_analysis_outs/inflammation_scores_by_patient.pdf", width = 10, height = 6)
 mps <- barplot(scores$infl_score, col = ifelse(test = scores$group == "HOXB13+", yes = "lightgreen", no = "darkblue"), 
                ylim = c(0, 1), axes = F,
                main = "Inflammation Score by Patient", ylab = "(N immune cells) / (N non-tumor cells)")
@@ -80,7 +80,7 @@ text(x = c(1, 1), y = c(0.45, 0.55), labels = c("uninflamed", "inflamed"), col =
 # dev.off()
 
 scores$H_norm <- plyr::mapvalues(x = scores$patient, from = sample_data$patient, to = sample_data$H_norm) |> as.numeric()
-# pdf("15_da_analysis_final_outs/inflammation_scores_vs_HOXB13_qPCR.pdf", width = 8, height = 6)
+# pdf("15_da_analysis_outs/inflammation_scores_vs_HOXB13_qPCR.pdf", width = 8, height = 6)
 plot(scores$H_norm, scores$infl_score, pch = 16, 
      xlab = "HOXB13 Normalized qPCR", ylab = "Inflammation Score", main = "Relationship Between HOXB13 qPCR and Inflammation Score")
 abline(reg = lm(infl_score ~ H_norm, scores), lwd = 1, lty = "dashed")
@@ -104,7 +104,7 @@ ratios <- dplyr::arrange(ratios, cd8_to_treg)
 ratios <- ratios[ratios$patient %in% scores[scores$infl_group == "inflamed",]$patient,]
 ratios$group <- plyr::mapvalues(x = ratios$patient, from = sample_data$patient, to = sample_data$group)
 
-# pdf("15_da_analysis_final_outs/Tcd8_to_Treg_ratio_for_inflamed_patients.pdf", width = 8, height = 6)
+# pdf("15_da_analysis_outs/Tcd8_to_Treg_ratio_for_inflamed_patients.pdf", width = 8, height = 6)
 mps <- barplot(ratios$cd8_to_treg, col = ifelse(test = ratios$group == "HOXB13+", yes = "lightgreen", no = "darkblue"),
                main = "CD8 T cell to Treg Ratio by Patient", ylab = "(N CD8 T cells) / (N Tregs)")
 legend(x = 0.5, y = 5, legend = c("+", "-"), fill = c("lightgreen", "darkblue"), pch = NA, title = "HOXB13 group", adj = c(0.5, 0.5))
@@ -122,7 +122,7 @@ ratios <- dplyr::group_by(df, patient) |> dplyr::summarise(cd8_act_to_nontumor =
 ratios <- dplyr::arrange(ratios, cd8_act_to_nontumor)
 ratios$group <- plyr::mapvalues(x = ratios$patient, from = sample_data$patient, to = sample_data$group)
 
-# pdf("15_da_analysis_final_outs/Tcd8_act_to_nontumor_ratio_by_patient.pdf", width = 8, height = 6)
+# pdf("15_da_analysis_outs/Tcd8_act_to_nontumor_ratio_by_patient.pdf", width = 8, height = 6)
 mps <- barplot(ratios$cd8_act_to_nontumor, col = ifelse(test = ratios$group == "HOXB13+", yes = "lightgreen", no = "darkblue"),
                main = "Activated CD8 T Cell to Non-Tumor Cell Ratio by Patient", ylab = "(N activated CD8 T cells) / (N non-tumor cells)")
 legend(x = 0.5, y = 0.2, legend = c("+", "-"), fill = c("lightgreen", "darkblue"), pch = NA, title = "HOXB13 group", adj = c(0.5, 0.5))
@@ -138,7 +138,7 @@ ratios <- dplyr::group_by(df, patient) |> dplyr::summarise(cd8_act_to_treg = sum
 ratios <- dplyr::arrange(ratios, cd8_act_to_treg)
 ratios$group <- plyr::mapvalues(x = ratios$patient, from = sample_data$patient, to = sample_data$group)
 
-# pdf("15_da_analysis_final_outs/Tcd8_act_to_Treg_ratio_by_patient.pdf", width = 8, height = 6)
+# pdf("15_da_analysis_outs/Tcd8_act_to_Treg_ratio_by_patient.pdf", width = 8, height = 6)
 mps <- barplot(ratios$cd8_act_to_treg, col = ifelse(test = ratios$group == "HOXB13+", yes = "lightgreen", no = "darkblue"),
                main = "Activated CD8 T Cell to Treg Ratio by Patient", ylab = "(N activated CD8 T cells) / (N Tregs)")
 legend(x = 0.5, y = 3, legend = c("+", "-"), fill = c("lightgreen", "darkblue"), pch = NA, title = "HOXB13 group", adj = c(0.5, 0.5))
@@ -155,7 +155,7 @@ ratios <- dplyr::arrange(ratios, cd8_act_to_exh)
 ratios$group <- plyr::mapvalues(x = ratios$patient, from = sample_data$patient, to = sample_data$group)
 ratios <- ratios[ratios$cd8_act_to_exh < Inf,]
 
-# pdf("15_da_analysis_final_outs/Tcd8_act_to_Tcd8_exh_ratio_by_patient.pdf", width = 8, height = 6)
+# pdf("15_da_analysis_outs/Tcd8_act_to_Tcd8_exh_ratio_by_patient.pdf", width = 8, height = 6)
 mps <- barplot(ratios$cd8_act_to_exh, col = ifelse(test = ratios$group == "HOXB13+", yes = "lightgreen", no = "darkblue"),
                main = "Activated CD8 T Cell to Exhausted CD8 T Cell Ratio by Patient", ylab = "(N activated CD8 T cells) / (N exhausted CD8 T cells)", 
                sub = "Note: p61 has zero exhausted CD8 T cells and is not shown.")
@@ -188,7 +188,7 @@ ggplot() +
         legend.position = "top"
   ) + 
   labs(y = "count", title = "CD8 T Cells by Patient")
-# ggsave(filename = "15_da_analysis_final_outs/Tcd8_act_and_Tcd8_exh_counts_by_patient.pdf", width = 10, height = 8)
+# ggsave(filename = "15_da_analysis_outs/Tcd8_act_and_Tcd8_exh_counts_by_patient.pdf", width = 10, height = 8)
 ggplot() + 
   geom_bar(data = df, mapping = aes(x = patient, y = prop, fill = `CD8 T`), stat = "identity") + 
   scale_fill_manual(values = c("red3", "pink3")) +
@@ -207,7 +207,7 @@ ggplot() +
         legend.position = "top"
         ) + 
   labs(y = "proportion", title = "CD8 T Cells by Patient")
-# ggsave(filename = "15_da_analysis_final_outs/Tcd8_act_and_Tcd8_exh_proportions_by_patient.pdf", width = 10, height = 8)
+# ggsave(filename = "15_da_analysis_outs/Tcd8_act_and_Tcd8_exh_proportions_by_patient.pdf", width = 10, height = 8)
 
 # Plasmablasts -----------------------------------------------------------------
 # - Plasmablasts / total non-tumor cells (for each patient colored by Hoxb13 high/low like your recent graphs)
@@ -219,7 +219,7 @@ ratios <- dplyr::group_by(df, patient) |> dplyr::summarise(plsm_to_nontumor = su
 ratios <- dplyr::arrange(ratios, plsm_to_nontumor)
 ratios$group <- plyr::mapvalues(x = ratios$patient, from = sample_data$patient, to = sample_data$group)
 
-# pdf("15_da_analysis_final_outs/plasmablast_to_nontumor_ratio_by_patient.pdf", width = 8, height = 6)
+# pdf("15_da_analysis_outs/plasmablast_to_nontumor_ratio_by_patient.pdf", width = 8, height = 6)
 mps <- barplot(ratios$plsm_to_nontumor, col = ifelse(test = ratios$group == "HOXB13+", yes = "lightgreen", no = "darkblue"),
                main = "Plasmablast to Non-Tumor Cell Ratio by Patient", ylab = "(N plasmablasts) / (N non-tumor cells)")
 legend(x = 0.5, y = 0.06, legend = c("+", "-"), fill = c("lightgreen", "darkblue"), pch = NA, title = "HOXB13 group", adj = c(0.5, 0.5))
@@ -235,7 +235,7 @@ ratios <- dplyr::group_by(df, patient) |> dplyr::summarise(lineageB_to_nontumor 
 ratios <- dplyr::arrange(ratios, lineageB_to_nontumor)
 ratios$group <- plyr::mapvalues(x = ratios$patient, from = sample_data$patient, to = sample_data$group)
 
-# pdf("15_da_analysis_final_outs/B_cell_lineage_to_nontumor_ratio_by_patient.pdf", width = 8, height = 6)
+# pdf("15_da_analysis_outs/B_cell_lineage_to_nontumor_ratio_by_patient.pdf", width = 8, height = 6)
 mps <- barplot(ratios$lineageB_to_nontumor, col = ifelse(test = ratios$group == "HOXB13+", yes = "lightgreen", no = "darkblue"),
                main = "B Lineage Cell to Non-Tumor Cell Ratio by Patient", ylab = "(N B lineage cells) / (N non-tumor cells)")
 legend(x = 0.5, y = 0.2, legend = c("+", "-"), fill = c("lightgreen", "darkblue"), pch = NA, title = "HOXB13 group", adj = c(0.5, 0.5))
