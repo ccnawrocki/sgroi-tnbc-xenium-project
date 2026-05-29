@@ -187,22 +187,146 @@ table(adata$obs[TandNKcells,]$patient, lymphoid_typing$post_probs$lymphoidmajor$
 
 #### Using HieraType for Macrophages -------------------------------------------
 
-adata <- anndataR::read_h5ad(path = "sgroi-tnbc_filtered", mode = "r+")
+adata <- anndataR::read_h5ad(path = "sgroi-tnbc_filtered.h5ad", mode = "r+")
+adata$var_names
 
-markerslist_macro <- 
-  HieraType::make_markerslist(
-    index_marker = list(
-      "M1" = c(), 
-      "M2" = c(),
+library(HieraType)
+
+## Claude helped me with the marker genes ##
+
+#!#! Macrophage vs. DC (top layer) #!#!
+markerslist_myeloidmajor <-
+  make_markerslist(index_marker = list(
+    "Macrophage" = c("CD68", "CD163", "C1QB", "MARCO", "CSF1R", "VSIG4"),
+    "DC"         = c("CD1C", "LAMP3", "ITGAX", "IRF8", "BATF3", "IRF4")
+  ),
+  predictors = list(
+    "Macrophage" = c(
+      "CD68", "CD163", "C1QB", "MARCO", "CSF1R", "VSIG4", "MPEG1",
+      "AIF1", "TREM2", "SPP1", "APOE", "AXL", "ITGAM",
+      "TGFB1", "IL10", "VEGFA", "MMP9", "MMP12",
+      "LGALS3", "CTSB", "CTSD", "CTSL", "CTSS",
+      "CCL7", "CCL8", "CCL18", "CCL13",
+      "ARG1", "NOS2", "CXCL10", "TNF", "IL1B", "IL6",
+      "CIITA", "STAT1", "IRF1", "MKI67", "CHIT1", "PLA2G7", "ALOX5AP"
     ),
-    predictors = list(
-      "M1" = c(
-        
-      ), 
-      "M2" = c(
-        
-      ),
+    "DC" = c(
+      "CD1C", "LAMP3", "ITGAX", "CLEC10A", "FCER1A", "IRF8", "BATF3", "IRF4",
+      "CLEC12A", "FCGR2B", "LILRB2", "LILRB4", "NOTCH2", "RUNX3",
+      "CCR7", "CD83", "CD40", "CD80", "CD86", "CIITA",
+      "MARCKSL1", "IDO1", "CXCL9", "CXCL10", "PDCD1LG2",
+      "SPIB", "RELB", "AREG", "TGFB1", "CX3CR1", "ITGAM", "CD1A"
+    )
+  )
+  )
+
+#!#! Within DCs: cDC vs. mregDC #!#!
+markerslist_dcs <-
+  make_markerslist(index_marker = list(
+    "cDC"    = c("CD1C", "IRF8", "BATF3", "IRF4", "CLEC10A", "FCER1A"),
+    "mregDC" = c("LAMP3", "CCR7", "CD83", "MARCKSL1", "IDO1")
+  ),
+  predictors = list(
+    "cDC" = c(
+      "CD1C", "CLEC10A", "FCER1A", "IRF4", "BATF3", "IRF8",
+      "NOTCH2", "RUNX3", "CLEC12A", "FCGR2B",
+      "LILRB2", "LILRB4", "CD1A", "AREG", "CX3CR1",
+      "ITGAX", "ITGAM", "CIITA", "SPIB", "RELB", "CD74"
+    ),
+    "mregDC" = c(
+      "LAMP3", "CCR7", "CD83", "MARCKSL1", "IDO1",
+      "CCL19", "CCL21", "CD274", "PDCD1LG2",
+      "CXCL9", "CXCL10", "STAT3", "CD40", "CD80", "CD86",
+      "CIITA", "AIRE", "TGFB1", "AREG", "IL4R"
+    )
+  )
+  )
+
+#!#! Within Macrophages: M1 vs. M2 #!#!
+markerslist_macros <-
+  make_markerslist(index_marker = list(
+    "Mac.M1" = c("CXCL10", "CXCL9", "NOS2", "STAT1", "IL12B", "IRF1"),
+    "Mac.M2" = c("CD163", "ARG1", "VSIG4", "TREM2", "CCL18", "IL10")
+  ),
+  predictors = list(
+    "Mac.M1" = c(
+      "CXCL10", "CXCL9", "CXCL11", "CXCL5",
+      "TNF", "IL1B", "IL1A", "IL6", "IL12A", "IL12B", "IL18",
+      "STAT1", "STAT2", "IRF1", "IRF3", "IRF5", "NOS2", "IDO1",
+      "CD80", "CD86", "ICAM1", "ISG15", "IFIT2", "IFIT3", "MX1", "MX2", "OAS2",
+      "IFNG", "IFNGR1", "CGAS", "TMEM173", "NFKB1", "NFKB2", "RELB",
+      "TNFAIP3", "SOCS1", "SOCS3", "HIF1A", "SERPINE1", "CCL20"
+    ),
+    "Mac.M2" = c(
+      "CD163", "ARG1", "IL10", "TGFB1", "TGFBI", "SMAD3",
+      "CCL13", "CCL18", "CCL2", "CCL7", "CCL8", "CCL26",
+      "MARCO", "VSIG4", "APOE", "TREM2", "SPP1",
+      "FN1", "VEGFA", "MMP9", "MMP12", "MMP14",
+      "LGALS3", "CHIT1", "CTSL", "CTSS", "CTSB",
+      "IL4R", "STAT3", "STAT6", "SOCS2", "AXL",
+      "ALOX5AP", "PLA2G7", "PTGS1", "MYD88", "MPEG1", "C1QB"
+    )
+  )
+  )
+
+#!#! Build pipeline #!#!
+pipeline_myeloid <-
+  make_pipeline(
+    markerslists = list(
+      "myeloidmajor" = markerslist_myeloidmajor,
+      "dcminor"      = markerslist_dcs,
+      "macminor"     = markerslist_macros
+    ),
+    priors = list(
+      "dcminor"  = "myeloidmajor",
+      "macminor" = "myeloidmajor"
+    ),
+    priors_category = list(
+      "dcminor"  = "DC",
+      "macminor" = "Macrophage"
     )
   )
 
+# library(BPCells)
+# snn <- knn_hnsw(adata$obsm$X_scVI, k = 30, metric = "euclidean", ef = 1500) |> # Find approximate nearest neighbors
+#   knn_to_snn_graph() # Convert to a SNN graph
+# dimnames(snn) <- list(adata$obs_names, adata$obs_names)
+# 
+# library(Matrix)
+# myeloid_cells <- adata$obs[adata$obs$celltype_level2 %in% c("Macrophage1", "Macrophage2", "mDC") & !is.na(adata$obs$celltype_level2),] |> rownames()
+# cts <- adata$layers$counts |> as("CsparseMatrix") |> magrittr::set_colnames(value = adata$var_names) |> magrittr::set_rownames(value = adata$obs_names)
+# 
+# myeloid_typing <- 
+#   run_pipeline(pipeline = pipeline_myeloid, 
+#                counts_matrix = cts[myeloid_cells, ], 
+#                adjacency_matrix = snn[myeloid_cells, myeloid_cells], 
+#                celltype_call_threshold = 0.5
+#   )
+
+#saveRDS(pipeline_myeloid, file = "18_hieratype_outs/hieratype_custom_myeloid_pipeline.RDS")
+#saveRDS(myeloid_typing, file = "18_hieratype_outs/hieratype_custom_myeloid_pipeline_results.RDS")
+
+# Visualizing
+myeloid_typing <- readRDS("18_hieratype_outs/hieratype_custom_myeloid_pipeline_results.RDS")
+norm <- (adata$layers$lognorm) |> magrittr::set_colnames(rownames(adata$var)) |> magrittr::set_rownames(rownames(adata$obs)) |> as("CsparseMatrix")
+norm <- norm[myeloid_cells,]
+fct <- clusterwise_foldchange_metrics(normed = Matrix::t(norm),
+                                      metadata = myeloid_typing$post_probs$myeloidmajor,
+                                      cluster_column = "celltype_granular")
+idxs <- unique(unname(c(unlist(lapply(markerslist_macros, "[[", "index_marker")), 
+                        unlist(lapply(markerslist_dcs, "[[", "index_marker")), 
+                        unlist(lapply(markerslist_myeloidmajor, "[[", "index_marker")))))
+nms <- c(names(markerslist_macros), names(markerslist_dcs))
+hmsubtype <- marker_heatmap(fct, featsuse = c("SPP1", "TGFB1", "CIITA", "CXCL1", 
+                                              "CXCL2", "CXCL5", "CXCL13", "CCL20", 
+                                              "CCL26", "CCL19", "CD40", "PDCD1", 
+                                              idxs[is.element(idxs, fct$gene)]), 
+                            clusterorder = nms, orient_diagonal = T) + 
+  ggplot2::scale_fill_viridis_c(option = "C") + 
+  ggplot2::labs(fill = "Mean expression in group", title = "Myeloid cells")
+
+print(hmsubtype)
+#ggplot2::ggsave("18_hieratype_outs/myeloid_cells_bubble_plot_canonical_markers.pdf", width = 10, height = 4)
+
+table(adata$obs[myeloid_cells,]$patient, myeloid_typing$post_probs$myeloidmajor$celltype_granular)
 

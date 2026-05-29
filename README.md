@@ -68,7 +68,7 @@ Attempt to further annotate the macrophages.
 
 ## 18
 
-Using `HieraType` to assign granular cell type annotations to the T cells.
+Using `HieraType` to assign granular cell type annotations to the T cells and to the myeloid cells.
 
 -   This method seemed to perform well.
 
@@ -93,6 +93,7 @@ Organized all the data for the project.
 
 -   I added globally-defined spatial coordinates.
 -   I touched up the cell metadata so that the cell-typing makes more sense. `celltype_final_amended_1` holds the up-to-date cell-typing.
+-   After using `HieraType` on the Myeloid cells, I added to the cell metadata again. `celltype_final_amended_2` holds the up-to-date cell-typing.
 
 ## 22
 
@@ -105,3 +106,9 @@ Finding spatially-correlated gene modules.
 ## 24
 
 Performing NE (neighborhood enrichment) analysis with `cellcharter`.
+
+## 25
+
+Third round of DA analysis.
+
+-   Done after figuring out the granular myeloid typing.
