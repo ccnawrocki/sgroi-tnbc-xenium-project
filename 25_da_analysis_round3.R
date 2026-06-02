@@ -32,7 +32,7 @@ colnames(res) <- c("celltype", "logOR", "logOR_se", "zstat", "pval", "contrast")
 rownames(res) <- NULL
 res$log2OR <- res$logOR / log(2)
 res$log2OR_se <- res$logOR_se / log(2)
-res$padj <- p.adjust(p = res$pval, method = "bonferroni")
+res$padj <- p.adjust(p = res$pval, method = "BH")
 
 # edgeR might even be better... 
 library(edgeR)
@@ -47,10 +47,10 @@ y <- DGEList(counts = counts_mat,
              group = group)
 
 # Estimate dispersion with empirical Bayes shrinkage across cell types
-y <- estimateDisp(y, design)
+y <- estimateDisp(y, mm)
 
 # Fit and test
-fit <- glmQLFit(y, design)
+fit <- glmQLFit(y, mm)
 fitres <- glmQLFTest(fit, coef = "groupHOXB13+")
 fitres <- topTags(fitres, n = Inf) |> as.data.frame()
 
@@ -78,13 +78,16 @@ res$enrichment <- dplyr::case_when(res$log2OR > 0 & res$pval < 0.05 ~ "HOXB13+",
                                    res$log2OR < 0 & res$pval < 0.05 ~ "HOXB13-", 
                                    T ~ "neither")
 ggplot() + 
-  geom_errorbar(data = res, aes(xmin = log2OR-1.96*log2OR_se, xmax = log2OR+1.96*log2OR_se, y = celltype), color = "darkgrey") +
+  geom_errorbar(data = res, aes(xmin = log2OR-1.96*log2OR_se, xmax = log2OR+1.96*log2OR_se, y = celltype), color = "black", width = 0.5) +
   geom_point(data = res, aes(x = log2OR, y = celltype, fill = enrichment), shape = 21, color = "black", size = 4) + 
+  geom_text(data = res, aes(x = (log2OR+1.96*log2OR_se)+0.25, y = celltype, label = paste0("p = ", round(pval, digits = 3), "\n", "FDR = ", round(padj, digits = 3))), color = "black", size = 2.5, hjust = 0, fontface = "bold") + 
   scale_fill_manual(values = c("HOXB13-" = "darkblue","HOXB13+" = "lightgreen", "neither" = "black")) + 
   geom_vline(xintercept = 0, linetype = "dashed") + 
-  ggthemes::theme_base() + 
+  ggthemes::theme_hc() + 
   theme(panel.background = element_rect(fill = "white"), plot.title = element_text(hjust = 0.5), 
-        axis.title.y = element_blank(), axis.text = element_text(color = "black")) + 
-  labs(title = "Differential Abundance\nTesting Summary")
-#ggsave(filename = "25_da_analysis_round3_outs/forest_plot_all_celltypes_proportion_of_patient.pdf", height = 8, width = 7)
+        axis.title.y = element_blank(), axis.text = element_text(color = "black", size = 12), 
+        axis.ticks.length = unit(2.5, "mm"), axis.line = element_line(color = "black")) + 
+  labs(title = "Differential Abundance\nTesting Summary") + 
+  scale_x_continuous(limits = c(-4, 5), breaks = seq(-4, 5, 1))
+#ggsave(filename = "25_da_analysis_round3_outs/forest_plot_all_celltypes_proportion_of_patient.pdf", height = 8.5, width = 8.5)
 
